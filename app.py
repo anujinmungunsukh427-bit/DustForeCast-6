@@ -211,45 +211,30 @@ except Exception as error:
 
 aimag_options = sorted(data["Aimag"].unique())
 first_future_date = pd.to_datetime(data["Date"].max()).date() + pd.Timedelta(days=1)
-clicked_aimag = st.query_params.get("aimag")
-if clicked_aimag in aimag_options:
-    st.session_state.selected_aimag = clicked_aimag
-    del st.query_params["aimag"]
 if "selected_aimag" not in st.session_state:
     st.session_state.selected_aimag = "Ulaanbaatar" if "Ulaanbaatar" in aimag_options else aimag_options[0]
+clicked_aimag = st.query_params.get("aimag")
+if clicked_aimag in aimag_options and clicked_aimag != st.session_state.selected_aimag:
+    st.session_state.selected_aimag = clicked_aimag
+    st.query_params.pop("aimag", None)
 if "selected_date" not in st.session_state:
     st.session_state.selected_date = first_future_date
+if st.session_state.selected_aimag not in aimag_options:
+    st.session_state.selected_aimag = aimag_options[0]
 
-if "filters_visible" not in st.session_state:
-    st.session_state.filters_visible = True
-toggle_label = "Шүүлтүүрийг нуух" if st.session_state.filters_visible else "Шүүлтүүрийг харуулах"
-if st.button(toggle_label, type="secondary"):
-    st.session_state.filters_visible = not st.session_state.filters_visible
-    st.rerun()
-filters_visible = st.session_state.filters_visible
-
-with st.sidebar:
-    if filters_visible:
-        st.markdown("### Шүүлтүүр")
-        selected_aimag = st.selectbox("Аймаг сонгох", aimag_options, key="selected_aimag")
-        selected_date = st.date_input("Ирээдүйн өдөр", value=first_future_date, min_value=first_future_date, max_value=first_future_date + pd.Timedelta(days=13), key="selected_date")
-        latest = data[data["Aimag"] == selected_aimag].sort_values("DateTime").iloc[-1]
-        st.markdown("### Өөрийн таамаглал")
-        input_temperature = st.number_input("Температур (°C)", value=float(latest["Temperature_C"]), step=0.5)
-        input_humidity = st.number_input("Агаарын чийгшил (%)", min_value=0.0, max_value=100.0, value=float(latest["Humidity_percent"]), step=1.0)
-        input_pressure = st.number_input("Агаарын даралт (hPa)", value=float(latest["Pressure_hPa"]), step=0.5)
-        input_wind = st.number_input("Салхины хурд (м/с)", min_value=0.0, value=float(latest["Wind_m_s"]), step=0.1)
-        st.markdown("---")
-        st.caption("Өгөгдөл: 21 аймаг, цаг тутмын ажиглалт")
-        st.caption(f"Шинэчлэгдсэн: {data['DateTime'].max():%Y-%m-%d %H:%M}")
-    else:
-        selected_aimag = st.session_state.selected_aimag
-        selected_date = st.session_state.selected_date
-        latest = data[data["Aimag"] == selected_aimag].sort_values("DateTime").iloc[-1]
-        input_temperature = float(latest["Temperature_C"])
-        input_humidity = float(latest["Humidity_percent"])
-        input_pressure = float(latest["Pressure_hPa"])
-        input_wind = float(latest["Wind_m_s"])
+with st.popover("Шүүлтүүр"):
+    st.markdown("### Шүүлтүүр")
+    selected_aimag = st.selectbox("Аймаг сонгох", aimag_options, key="selected_aimag")
+    selected_date = st.date_input("Ирээдүйн өдөр", value=first_future_date, min_value=first_future_date, max_value=first_future_date + pd.Timedelta(days=13), key="selected_date")
+    latest = data[data["Aimag"] == selected_aimag].sort_values("DateTime").iloc[-1]
+    st.markdown("### Өөрийн таамаглал")
+    input_temperature = st.number_input("Температур (°C)", value=float(latest["Temperature_C"]), step=0.5)
+    input_humidity = st.number_input("Агаарын чийгшил (%)", min_value=0.0, max_value=100.0, value=float(latest["Humidity_percent"]), step=1.0)
+    input_pressure = st.number_input("Агаарын даралт (hPa)", value=float(latest["Pressure_hPa"]), step=0.5)
+    input_wind = st.number_input("Салхины хурд (м/с)", min_value=0.0, value=float(latest["Wind_m_s"]), step=0.1)
+    st.markdown("---")
+    st.caption("Өгөгдөл: 21 аймаг, цаг тутмын ажиглалт")
+    st.caption(f"Шинэчлэгдсэн: {data['DateTime'].max():%Y-%m-%d %H:%M}")
 
 weather_input = {
     "temperature": input_temperature,
