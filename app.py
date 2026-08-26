@@ -151,8 +151,9 @@ def map_svg(summary, selected):
         radius = 4.6 if name == selected else 3.5
         stroke = "#f6f3ea" if name == selected else "#17241f"
         circles.append(
-            f'<g><circle cx="{x}" cy="{y}" r="{radius}" fill="{color}" stroke="{stroke}" stroke-width="1.1"/>'
-            f'<text x="{x}" y="{y + 7}" text-anchor="middle">{html.escape(name.replace("Ulaanbaatar", "УБ"))}</text></g>'
+            f'<a href="?aimag={name}" aria-label="{html.escape(name)} сонгох">'
+            f'<g class="province-marker"><circle cx="{x}" cy="{y}" r="{radius}" fill="{color}" stroke="{stroke}" stroke-width="1.1"/>'
+            f'<text x="{x}" y="{y + 7}" text-anchor="middle">{html.escape(name.replace("Ulaanbaatar", "УБ"))}</text></g></a>'
         )
     return f'''<svg class="mongolia-map" viewBox="0 0 100 76" role="img" aria-label="21 аймгийн тоосжилтын зураг">
     <path class="map-shape" d="M2 28 Q6 22 13 20 Q17 14 23 11 Q31 9 39 7 Q48 5 57 8 Q63 10 70 8 Q78 10 84 14 Q91 16 97 24 Q95 29 98 34 Q100 39 95 44 Q92 47 87 48 Q85 54 78 57 Q73 61 68 64 Q61 63 55 68 Q48 67 43 65 Q38 69 32 67 Q27 64 21 64 Q16 61 13 57 Q8 56 7 52 Q10 48 6 44 Q3 41 5 36 Q1 33 2 28 Z"/>
@@ -186,6 +187,9 @@ h1,h2,h3 { font-family:'Manrope', sans-serif; letter-spacing:0; }
 .map-shape { fill:#b8dfc9; stroke:#316753; stroke-width:.7; }
 .map-line { fill:none; stroke:#7db39b; stroke-width:.35; opacity:.85; }
 .mongolia-map text { font-size:1.65px; fill:#244035; font-family:'DM Sans'; }
+.province-marker { cursor:pointer; }
+.province-marker:hover circle { stroke:#ed7b45; stroke-width:1.8; }
+.province-marker:hover text { font-weight:700; }
 .legend { display:flex; gap:1rem; flex-wrap:wrap; margin-top:.8rem; color:var(--muted); font-size:.78rem; }
 .dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:4px; }
 .guide-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:.7rem; }
@@ -207,6 +211,10 @@ except Exception as error:
 
 aimag_options = sorted(data["Aimag"].unique())
 first_future_date = pd.to_datetime(data["Date"].max()).date() + pd.Timedelta(days=1)
+clicked_aimag = st.query_params.get("aimag")
+if clicked_aimag in aimag_options:
+    st.session_state.selected_aimag = clicked_aimag
+    del st.query_params["aimag"]
 if "selected_aimag" not in st.session_state:
     st.session_state.selected_aimag = "Ulaanbaatar" if "Ulaanbaatar" in aimag_options else aimag_options[0]
 if "selected_date" not in st.session_state:
@@ -271,6 +279,16 @@ with left:
 with right:
     st.markdown(f"### {selected_aimag} · юу хийх вэ?")
     st.markdown(f'<div class="panel"><div class="eyebrow" style="color:{color}">{label} · шороон шуурганы магадлал {storm_probability}%</div><h3 style="margin:.45rem 0">{advice_for(forecast, input_wind, input_humidity)}</h3><p style="color:#697770;line-height:1.55">{level_advice}</p><p style="color:#697770;line-height:1.55"><b>Тухайн өдөр:</b> {activity_advice(forecast, storm_probability)}</p></div>', unsafe_allow_html=True)
+    st.write("")
+    st.markdown("#### Тооцоонд ашигласан хүчин зүйлс")
+    st.markdown(
+        f'<div class="panel"><b>Температур:</b> {input_temperature:.1f} °C &nbsp; · &nbsp; '
+        f'<b>Чийгшил:</b> {input_humidity:.1f}%<br>'
+        f'<b>Даралт:</b> {input_pressure:.1f} hPa &nbsp; · &nbsp; '
+        f'<b>Салхи:</b> {input_wind:.1f} м/с<br>'
+        f'<b>PM10:</b> {pm10:.1f} µg/m³ &nbsp; · &nbsp; <b>Таамаг AQI:</b> {forecast:.0f}</div>',
+        unsafe_allow_html=True,
+    )
     st.write("")
     st.markdown("#### Дараагийн 12 цагийн төлөв")
     chart = hourly_series(data, selected_aimag, pd.Timestamp(selected_date), weather_input)
