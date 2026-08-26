@@ -155,8 +155,8 @@ def map_svg(summary, selected):
             f'<text x="{x}" y="{y + 7}" text-anchor="middle">{html.escape(name.replace("Ulaanbaatar", "УБ"))}</text></g>'
         )
     return f'''<svg class="mongolia-map" viewBox="0 0 100 76" role="img" aria-label="21 аймгийн тоосжилтын зураг">
-      <path class="map-shape" d="M3 22 L12 11 L28 5 L47 4 L66 2 L83 9 L97 21 L94 39 L98 52 L87 69 L62 73 L43 68 L23 71 L8 58 L2 41 Z"/>
-      <path class="map-line" d="M17 10 Q43 26 68 12 T95 30 M8 47 Q35 37 55 52 T94 48 M31 6 Q39 30 31 66 M57 4 Q55 30 63 72 M78 7 Q70 30 84 65"/>
+    <path class="map-shape" d="M2 28 Q6 22 13 20 Q17 14 23 11 Q31 9 39 7 Q48 5 57 8 Q63 10 70 8 Q78 10 84 14 Q91 16 97 24 Q95 29 98 34 Q100 39 95 44 Q92 47 87 48 Q85 54 78 57 Q73 61 68 64 Q61 63 55 68 Q48 67 43 65 Q38 69 32 67 Q27 64 21 64 Q16 61 13 57 Q8 56 7 52 Q10 48 6 44 Q3 41 5 36 Q1 33 2 28 Z"/>
+    <path class="map-line" d="M7 22 Q22 24 36 18 Q50 13 63 16 Q78 12 94 23 M5 35 Q19 31 34 36 Q48 40 62 35 Q77 31 97 35 M10 51 Q23 47 37 52 Q51 56 64 51 Q76 47 88 48 M23 11 Q28 25 25 39 Q23 52 21 64 M48 6 Q45 20 48 35 Q51 53 55 68 M69 8 Q64 22 68 36 Q70 51 68 64 M84 14 Q77 27 81 40 Q84 51 78 57"/>
       {''.join(circles)}
     </svg>'''
 
@@ -205,21 +205,43 @@ except Exception as error:
     st.error(f"Өгөгдөл уншихад алдаа гарлаа: {error}")
     st.stop()
 
+aimag_options = sorted(data["Aimag"].unique())
+first_future_date = pd.to_datetime(data["Date"].max()).date() + pd.Timedelta(days=1)
+if "selected_aimag" not in st.session_state:
+    st.session_state.selected_aimag = "Ulaanbaatar" if "Ulaanbaatar" in aimag_options else aimag_options[0]
+if "selected_date" not in st.session_state:
+    st.session_state.selected_date = first_future_date
+
+if "filters_visible" not in st.session_state:
+    st.session_state.filters_visible = True
+toggle_label = "Шүүлтүүрийг нуух" if st.session_state.filters_visible else "Шүүлтүүрийг харуулах"
+if st.button(toggle_label, type="secondary"):
+    st.session_state.filters_visible = not st.session_state.filters_visible
+    st.rerun()
+filters_visible = st.session_state.filters_visible
+
 with st.sidebar:
-    st.markdown("### Шүүлтүүр")
-    aimag_options = sorted(data["Aimag"].unique())
-    selected_aimag = st.selectbox("Аймаг сонгох", aimag_options, index=aimag_options.index("Ulaanbaatar") if "Ulaanbaatar" in aimag_options else 0)
-    first_future_date = pd.to_datetime(data["Date"].max()).date() + pd.Timedelta(days=1)
-    selected_date = st.date_input("Ирээдүйн өдөр", value=first_future_date, min_value=first_future_date, max_value=first_future_date + pd.Timedelta(days=13))
-    latest = data[data["Aimag"] == selected_aimag].sort_values("DateTime").iloc[-1]
-    st.markdown("### Өөрийн таамаглал")
-    input_temperature = st.number_input("Температур (°C)", value=float(latest["Temperature_C"]), step=0.5)
-    input_humidity = st.number_input("Агаарын чийгшил (%)", min_value=0.0, max_value=100.0, value=float(latest["Humidity_percent"]), step=1.0)
-    input_pressure = st.number_input("Агаарын даралт (hPa)", value=float(latest["Pressure_hPa"]), step=0.5)
-    input_wind = st.number_input("Салхины хурд (м/с)", min_value=0.0, value=float(latest["Wind_m_s"]), step=0.1)
-    st.markdown("---")
-    st.caption("Өгөгдөл: 21 аймаг, цаг тутмын ажиглалт")
-    st.caption(f"Шинэчлэгдсэн: {data['DateTime'].max():%Y-%m-%d %H:%M}")
+    if filters_visible:
+        st.markdown("### Шүүлтүүр")
+        selected_aimag = st.selectbox("Аймаг сонгох", aimag_options, key="selected_aimag")
+        selected_date = st.date_input("Ирээдүйн өдөр", value=first_future_date, min_value=first_future_date, max_value=first_future_date + pd.Timedelta(days=13), key="selected_date")
+        latest = data[data["Aimag"] == selected_aimag].sort_values("DateTime").iloc[-1]
+        st.markdown("### Өөрийн таамаглал")
+        input_temperature = st.number_input("Температур (°C)", value=float(latest["Temperature_C"]), step=0.5)
+        input_humidity = st.number_input("Агаарын чийгшил (%)", min_value=0.0, max_value=100.0, value=float(latest["Humidity_percent"]), step=1.0)
+        input_pressure = st.number_input("Агаарын даралт (hPa)", value=float(latest["Pressure_hPa"]), step=0.5)
+        input_wind = st.number_input("Салхины хурд (м/с)", min_value=0.0, value=float(latest["Wind_m_s"]), step=0.1)
+        st.markdown("---")
+        st.caption("Өгөгдөл: 21 аймаг, цаг тутмын ажиглалт")
+        st.caption(f"Шинэчлэгдсэн: {data['DateTime'].max():%Y-%m-%d %H:%M}")
+    else:
+        selected_aimag = st.session_state.selected_aimag
+        selected_date = st.session_state.selected_date
+        latest = data[data["Aimag"] == selected_aimag].sort_values("DateTime").iloc[-1]
+        input_temperature = float(latest["Temperature_C"])
+        input_humidity = float(latest["Humidity_percent"])
+        input_pressure = float(latest["Pressure_hPa"])
+        input_wind = float(latest["Wind_m_s"])
 
 weather_input = {
     "temperature": input_temperature,
