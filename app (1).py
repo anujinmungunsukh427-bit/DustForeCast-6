@@ -135,10 +135,7 @@ def future_forecast(data, aimag, target_date, weather=None):
     latest_date = data["DateTime"].max().date()
     days_ahead = max(1, (target_date - latest_date).days)
     day_shift = (history["US_AQI"].tail(24).mean() - history["US_AQI"].head(24).mean()) * 0.18
-    # Сарын үе хэлбэрээр таамаглалыг өргөтгөнө
-    month_factor = 0.98 + ((target_date.month - 1) % 12) * 0.015  # Үеийн өөрчлөлт
-    decay = max(0.4, 1.0 - (days_ahead / 365) * 0.6)  # Урт хугацаанд буурах
-    forecast = max(0.0, base + day_shift * min(days_ahead, 30) * month_factor * decay)
+    forecast = max(0.0, base + day_shift * min(days_ahead, 7))
     if weather:
         averages = history[["Temperature_C", "Humidity_percent", "Wind_m_s", "Pressure_hPa"]].mean()
         weather_effect = (
@@ -187,13 +184,6 @@ def future_series(data, aimag, start_date, days=7, weather=None):
         rows.append({"Огноо": date, "AQI": value})
     return pd.DataFrame(rows).set_index("Огноо")
 
-def future_series_yearly(data, aimag, start_date, weather=None):
-    """2026-2027 оны сонгосон хугацааны бүх календарийн өдрөөр таамаглал үүсгэнэ."""
-    rows = []
-    for date in pd.date_range(start=start_date, end="2027-12-31", freq="D"):
-        value = future_forecast(data, aimag, date.date(), weather)[0]
-        rows.append({"Огноо": date, "AQI": value})
-    return pd.DataFrame(rows).set_index("Огноо")
 
 def advice_for(aqi, wind, humidity):
     if aqi <= 50:
@@ -312,7 +302,6 @@ except Exception as error:
 
 aimag_options = sorted(data["Aimag"].unique())
 first_future_date = pd.to_datetime(data["Date"].max()).date() + pd.Timedelta(days=1)
-forecast_end_date = pd.Timestamp("2027-12-31").date()
 if "selected_aimag" not in st.session_state:
     st.session_state.selected_aimag = "Ulaanbaatar" if "Ulaanbaatar" in aimag_options else aimag_options[0]
 clicked_aimag = st.query_params.get("aimag")
@@ -327,7 +316,7 @@ if st.session_state.selected_aimag not in aimag_options:
 with st.popover("Шүүлтүүр"):
     st.markdown("### Шүүлтүүр")
     selected_aimag = st.selectbox("Аймаг сонгох", aimag_options, key="selected_aimag")
-    selected_date = st.date_input("Ирээдүйн өдөр", min_value=first_future_date, max_value=forecast_end_date, key="selected_date")
+    selected_date = st.date_input("Ирээдүйн өдөр", value=first_future_date, min_value=first_future_date, max_value=first_future_date + pd.Timedelta(days=13), key="selected_date")
     latest = data[data["Aimag"] == selected_aimag].sort_values("DateTime").iloc[-1]
     st.markdown("### Өөрийн таамаглал")
     input_temperature = st.number_input("Температур (°C)", value=float(latest["Temperature_C"]), step=0.5)
@@ -380,10 +369,6 @@ with right:
     st.markdown("#### Дараагийн 12 цагийн төлөв")
     chart = hourly_series(data, selected_aimag, pd.Timestamp(selected_date), weather_input)
     st.line_chart(chart, height=190, color="#ed7b45")
-    st.write("")
-    st.markdown("#### 2026-2027 оны бүх өдрийн таамаглал")
-    yearly_chart = future_series_yearly(data, selected_aimag, pd.Timestamp(first_future_date), weather_input)
-    st.line_chart(yearly_chart, height=290, color="#ed7b45")
 
 st.write("")
 st.markdown("### Тоосжилтын түвшин гэж юу вэ?")
